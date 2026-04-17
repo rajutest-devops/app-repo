@@ -1,0 +1,23 @@
+# app-repo/.gitignore
+
+# Node modules - never commit
+node_modules/
+
+# Test coverage output
+coverage/
+
+# Environment files - contain secrets
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+
+# Build output
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
