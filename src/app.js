@@ -24,5 +24,3 @@ if (require.main === module) {
 }
 
 
-# Just add a comment to app.js
-# echo "// pipeline test" >> src/app.js
