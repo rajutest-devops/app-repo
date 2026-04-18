@@ -13,8 +13,6 @@ jobs:
   build-and-push:
     name: Build and Push to ECR
     runs-on: ubuntu-latest
-    outputs:
-      image-tag: ${{ steps.image-tag.outputs.tag }}
 
     steps:
       - name: Checkout code
@@ -30,26 +28,14 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Set image tag
-        id: image-tag
-        run: |
-          REGISTRY=${{ steps.login-ecr.outputs.registry }}
-          TAG=$REGISTRY/myapp-staging:${{ github.sha }}
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "Image will be: $TAG"
-        
-      - name: Debug image tag
-        run: |
-          echo "Image tag is: ${{ steps.image-tag.outputs.tag }}"
-
       - name: Build Docker image
         run: |
-          docker build -t ${{ steps.image-tag.outputs.tag }} .
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/myapp-staging:${{ github.sha }} .
 
       - name: Scan with Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ steps.image-tag.outputs.tag }}
+          image-ref: ${{ steps.login-ecr.outputs.registry }}/myapp-staging:${{ github.sha }}
           format: table
           exit-code: 1
           severity: CRITICAL
@@ -57,8 +43,7 @@ jobs:
 
       - name: Push to ECR
         run: |
-          docker push ${{ steps.image-tag.outputs.tag }}
-
+          docker push ${{ steps.login-ecr.outputs.registry }}/myapp-staging:${{ github.sha }}
 
   deploy:
     name: Deploy to ECS
@@ -76,6 +61,10 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/myapp-staging-github-actions
           aws-region: ap-south-1
 
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Download task definition
         run: |
           aws ecs describe-task-definition \
@@ -88,7 +77,7 @@ jobs:
         with:
           task-definition: task-def.json
           container-name: myapp
-          image: ${{ needs.build-and-push.outputs.image-tag }}
+          image: ${{ steps.login-ecr.outputs.registry }}/myapp-staging:${{ github.sha }}
 
       - name: Deploy to ECS
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
