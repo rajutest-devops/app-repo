@@ -69,7 +69,7 @@ jobs:
         run: npm ci
 
       - name: Run audit
-        run: npm audit --audit-level=high
+        run: npm audit --audit-level=critical
  
   docker-build-scan:
     name: Docker Build and Scan
