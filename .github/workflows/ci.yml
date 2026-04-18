@@ -1,0 +1,93 @@
+name: Code scan
+
+on:
+  push:
+    branches-ignore:
+      - main          # run on ALL branches except main
+  pull_request:
+    branches:
+      - main          # also run on PR targeting main
+
+permissions:
+  contents: read
+ 
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run lint
+        run: npm run lint
+         
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+        env:
+          CI: true
+
+  npm-audit:
+    name: npm-audit
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run audit
+        run: npm audit --audit-level=high
+ 
+  docker-build-scan:
+    name: Docker Build and Scan
+    runs-on: ubuntu-latest
+    needs: [test, npm-audit]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t myapp:${{ github.sha }} .
+      
+      - name: Scan image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: myapp:${{ github.sha }}
+          format: table
+          exit-code: 1
+          severity: CRITICAL
+          ignore-unfixed: true
